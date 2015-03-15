@@ -1,4 +1,4 @@
-# NKOSL_course
+# mkfs dd mount
 
 Needs superuser privileges
    Usage: sudo su -c "./local_fs.sh"

@@ -54,22 +54,3 @@ do
         echo "Unmounted $dir $label to it."
 done
 
-
-# 8
-# Lazy unmount 
-#for dir in ${dirs[@]}
-#do
-#        umount -l $fs $dir
-#        echo "Unmounted $dir $label to it."
-#done
-
-# file_pid=$(ps uax | grep test.txt -m 1 | sed -r 's/\ +/ /' | cut -d' ' -f2
-# kill -9 $file_pid
-
-
-
-
-
-
-
-

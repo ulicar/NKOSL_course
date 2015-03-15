@@ -1,4 +1,6 @@
 #!/bin/bash
 
-dd if=/dev/zero of=new_file bs=1024 count=32768
+size=$(echo '32 * 1024 * 1024' | bc)
+
+dd if=/dev/zero of=new_file bs=$size count=1
 

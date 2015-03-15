@@ -1,15 +1,12 @@
-# mkfs dd mount
+# Working with LVM (logical volume manager)
 
-Needs superuser privileges
-   Usage: sudo su -c "./local_fs.sh"
-	
-   Use cleanup.sh afterwards
 
-1) Creates 32MB empty file  
-2) Creates a ext4 filesystem from a empty file  
-3) Change the FS label  
-4) Make 2 directories and mount filesystem to it  
-5) Create file in FS  
-6) Open some background process on file  
-7) Try to unmount of FS. !!! Fails due to open process !!!  
+Bash script that creates ext4 filesystem used with LMV to create files upto 25MB (so they be sent via mail service)
+
+Usage:
+	./lvm-store.sh sample_dir
+	    Directory sample_dir has a size of 25 MiB.
+	    Made 2 loopback devices, with files:
+	         disk0.vol
+		 disk1.vol 
 

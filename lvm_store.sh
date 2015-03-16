@@ -14,32 +14,39 @@ then
 fi
 
 # Check direcotry size
-size=$(du -sk test_dir | sed -r 's/([0-9]+).*/\1/')
-echo "Directory $DIR has a size of $size kb"
+dir_size=$(du -sk $DIR | sed -r 's/([0-9]+).*/\1/')
+echo "Directory $DIR has a size of $dir_size KiB"
 
 
 # Make a logical container
-$container="lvm_container"
-$vg_name="vg_"$container
-$mount_point="tmp_filesystem"
+name="data"
+container="pv_"$name
+vg_name="vg_"$name
+mount_point="/dev/loop0"
 
-# max filesizes 25MB
-msize=$(echo "25 * 1024 * 1024" | bc)
-# size of a appropriate containter
-csize=$(echo "($size * 1024) / $msize + 1" | bc)
+# Sigtly bigger container then max size
+container_size=$(echo "26 * 1024 * 1024" | bc)
+
+# count of $DIR parts, of size $msize
+parts=$(echo "($dir_size) / $container_size + 1" | bc)
+
 # Crate empty space
-dd if=/dev/zero of=$container bs=$msize count=$csize > /dev/null 
+dd if=/dev/zero of=$container bs=$container_size count=$parts > /dev/null 
+
+
 # Create loop setup
-losetup /dev/loop0 $container 
-# Crete filesistem
-mkfs -t ext4 /dev/loop0 
-# Mount tmp filesystem
-mount /dev/loop0 $mount_point
-
-# create N containers
-pvcreate $mount_point
-vgcreate $vgname
-# lvcreate -l 100%FREE -n lvn0 $vgname
+#losetup $mount_point $container 
+#pvcreate $mount_point
+#vgcreate $vg_name $mount_point
 
 
+echo "Created $parts loopback devices with files:"
+for part in $(eval echo {0..$parts})
+do
+    #device="disk.part"$part
+    echo $part
+
+    #lvcreate --name $device --size 25M $vg_name
+    #echo "$device"
+done
 

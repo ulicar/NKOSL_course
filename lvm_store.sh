@@ -31,22 +31,21 @@ container_size=$(echo "26 * 1024 * 1024" | bc)
 parts=$(echo "($dir_size) / $container_size + 1" | bc)
 
 # Crate empty space
-dd if=/dev/zero of=$container bs=$container_size count=$parts > /dev/null 
+dd if=/dev/zero of=$container bs=$container_size count=$parts 2> /dev/null 
 
 
 # Create loop setup
-#losetup $mount_point $container 
-#pvcreate $mount_point
-#vgcreate $vg_name $mount_point
+losetup $mount_point $container || exit -1
+    
+pvcreate $mount_point || exit -1
 
+vgcreate -s1M $vg_name $mount_point || exit -1 
 
 echo "Created $parts loopback devices with files:"
 for part in $(eval echo {0..$parts})
 do
-    #device="disk.part"$part
-    echo $part
+    device="disk.part"$part
 
-    #lvcreate --name $device --size 25M $vg_name
-    #echo "$device"
+    lvcreate --name $device --size 25M $vg_name
+    echo "$device"
 done
-

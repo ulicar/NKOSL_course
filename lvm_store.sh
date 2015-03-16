@@ -1,51 +1,38 @@
 #!/bin/bash
 
 DIR=$1
-if [ "$#" -ne 1 ] 
+if [ "$#" -ne 1 ] || [ ! -d $DIR ] 
 then
     echo "Usage: $0 sample-directory"
     exit -1
 fi
 
-if [ ! -d $DIR ]
-then
-    echo "Directory $DIR must exit!"
-    exit -1
-fi
 
-# Check direcotry size
 dir_size=$(du -sk $DIR | sed -r 's/([0-9]+).*/\1/')
 echo "Directory $DIR has a size of $dir_size KiB"
 
-
-# Make a logical container
+# Make a logical containers
 name="data"
 container="pv_"$name
 vg_name="vg_"$name
-mount_point="/dev/loop0"
+mount_point=$(losetup -f)
 
-# Sigtly bigger container then max size
 container_size=$(echo "26 * 1024 * 1024" | bc)
-
-# count of $DIR parts, of size $msize
 parts=$(echo "($dir_size) / $container_size + 1" | bc)
 
-# Crate empty space
+# Create filesystem
 dd if=/dev/zero of=$container bs=$container_size count=$parts 2> /dev/null 
 
+losetup $mount_point $container 1> /dev/null || exit -1
+pvcreate $mount_point 1> /dev/null || exit -1
+vgcreate -s 1M $vg_name $mount_point 1> /dev/null || exit -1 
 
-# Create loop setup
-losetup $mount_point $container || exit -1
-    
-pvcreate $mount_point || exit -1
-
-vgcreate -s1M $vg_name $mount_point || exit -1 
-
+# Create partitions on a filesystem
 echo "Created $parts loopback devices with files:"
-for part in $(eval echo {0..$parts})
+count=$(echo "$parts - 1" | bc)
+for part in $(eval echo {0..$count})
 do
     device="disk.part"$part
-
-    lvcreate --name $device --size 25M $vg_name
-    echo "$device"
+    lvcreate --name $device --size 25M $vg_name 1> /dev/null || exit -1
+    echo -e "\t $device"
 done

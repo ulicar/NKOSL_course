@@ -6,51 +6,76 @@ function f_calculate_dir_size {
     echo "Directory $DIR has a size of $dir_size KiB"
 }
 
-function f_create_physical_voluems {
+function f_create_physical_volumens {
     for id in $(eval echo {0..$pv_count})
     do        
         dd if=/dev/zero of=$device$id bs=$pv_size count=1 || exit 2
     done
+}
+
+function f_get_loop_device {
+    loop=$(losetup -f 2>/dev/null)
+    if [ -z $loop ]
+    then
+        create_loop_device #>/dev/null || exit 3
+        loop=$(losetup -f 2>/dev/null)
+    fi
     
-    echo "Created $(eval echo $pv_count +1) devices"
+    echo $loop
+}
+
+function f_mount_physical_volumens {
+    for id in $(eval echo {0..$pv_count})
+    do
+        mount_point=$(f_get_loop_device)
+        losetup $mount_point $device$id #1> /dev/null || exit 4
+        mounted_loop_devs=("${mounted_loop_devs[@]}" "$mount_point")       
+    done
+}
+
+function f_notify {
+    echo "Created $(eval echo $pv_count +1) loopback devices with files"
     for id in $(eval echo {0..$pv_count})
     do        
         echo -e "$device$id"
     done
 }
 
+function f_create_volume_group {
+    vgcreate -s 1M $vg_name $mounted_loop_devices #1> /dev/null || exit -1 
+}
+
+function f_create_logical_volume {
+    lvcreate -l 100%FREE -n $lv_name $vg_name #1> /dev/null || exit -1
+}
+
+function f_create_fs {
+    mkfs -t ext4 $lv_name #1> /dev/null || exit -1
+} 
+
 
 function f_main {
-    f_calculate_dir_size
+    DIR=$1
+    f_calculate_dir_size 
     
-    name="data"
-    container="pv_"$name
-    vg_name="vg_"$name
     pv_size=$(echo "25 * 1024 * 1024" | bc)
     pv_count=$(echo "($dir_size) / $container_size + 1" | bc)
     device='disk.part'
     
-    f_create_physical_volumens
+    f_create_physical_volumens    
+    declare -a mounted_loop_devs 
     f_mount_physical_volumens
-    f_create_volume_group
-    f_create_fs
-    f_copy_dir_to_fs
-
-
-        device="disk.part"$id
-        lvcreate --name $device --size $pv_size $vg_name 1> /dev/null || exit -1
-        echo -e "\t $device"
-    done
+    f_notify
     
-    # Create filesystem
-
-    losetup $mount_point $container 1> /dev/null || exit -1
-    pvcreate $mount_point 1> /dev/null || exit -1
-    vgcreate -s 1M $vg_name $mount_point 1> /dev/null || exit -1 
-
-    # Create partitions on a filesystem
-    echo "Created $parts loopback devices with files:"
-
+    vg_name='vg_nkosl'   
+    f_create_volume_group
+    
+    lv_name='nkosl'
+    f_create_lvgical_volume
+    f_create_ext4_fs
+    
+    #f_copy_dir_to_fs
+    
 }
 
 if [ "$(id -u)" != "0" ]
@@ -65,8 +90,7 @@ then
     exit 1
 fi
 
-DIR=$1
-f_main 
+f_main $1 
 
 
 

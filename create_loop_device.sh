@@ -17,5 +17,5 @@ function create_loop_device {
 
 if [[ $_ = $0 ]]
 then
-	create_loop_device
+    create_loop_device
 fi

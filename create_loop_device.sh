@@ -5,7 +5,7 @@ function create_loop_device {
     curr_loop_number=$(ls /dev | tac | grep -E loop[0-9]+ | cut -d'p' -f2 | sort -rn | head -n 1)
     if [ -z $curr_loop_number ]
     then
-        $curr_loop_number=-1
+        curr_loop_number='-1'
     fi
     
     next_loop_number=$(echo "$curr_loop_number + 1" | bc)

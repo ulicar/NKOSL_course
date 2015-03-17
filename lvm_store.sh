@@ -1,23 +1,48 @@
 #!/bin/bash
+source create_loop_device
 
-function calculate_dir_size {
+function f_calculate_dir_size {
     dir_size=$(du -sk $DIR | sed -r 's/([0-9]+).*/\1/')
     echo "Directory $DIR has a size of $dir_size KiB"
 }
 
-function create_lvm_names {
+function f_create_physical_voluems {
+    for id in $(eval echo {0..$pv_count})
+    do        
+        dd if=/dev/zero of=$device$id bs=$pv_size count=1 || exit 2
+    done
+    
+    echo "Created $(eval echo $pv_count +1) devices"
+    for id in $(eval echo {0..$pv_count})
+    do        
+        echo -e "$device$id"
+    done
+}
+
+
+function f_main {
+    f_calculate_dir_size
+    
     name="data"
     container="pv_"$name
     vg_name="vg_"$name
-    mount_point=$(losetup -f)
-}
+    pv_size=$(echo "25 * 1024 * 1024" | bc)
+    pv_count=$(echo "($dir_size) / $container_size + 1" | bc)
+    device='disk.part'
+    
+    f_create_physical_volumens
+    f_mount_physical_volumens
+    f_create_volume_group
+    f_create_fs
+    f_copy_dir_to_fs
 
-function initialize_lvm {
-    container_size=$(echo "26 * 1024 * 1024" | bc)
-    parts=$(echo "($dir_size) / $container_size + 1" | bc)
 
+        device="disk.part"$id
+        lvcreate --name $device --size $pv_size $vg_name 1> /dev/null || exit -1
+        echo -e "\t $device"
+    done
+    
     # Create filesystem
-    dd if=/dev/zero of=$container bs=$container_size count=$parts 2> /dev/null 
 
     losetup $mount_point $container 1> /dev/null || exit -1
     pvcreate $mount_point 1> /dev/null || exit -1
@@ -25,28 +50,23 @@ function initialize_lvm {
 
     # Create partitions on a filesystem
     echo "Created $parts loopback devices with files:"
-    count=$(echo "$parts - 1" | bc)
-    for part in $(eval echo {0..$count})
-    do
-        device="disk.part"$part
-        lvcreate --name $device --size 25M $vg_name 1> /dev/null || exit -1
-        echo -e "\t $device"
-    done
 
 }
 
-DIR=$1
-if [ "$#" -ne 1 ] || [ ! -d $DIR ] 
+if [ "$(id -u)" != "0" ]
 then
-    echo "Usage: $0 sample-directory"
-    exit -1
+   echo "This script must be run as root" 1>&2
+   exit 1
 fi
 
-calculate_dir_size 
+if [ "$#" -ne 1 ] || [ ! -d $1 ] 
+then
+    echo "Usage: $0 sample-directory"
+    exit 1
+fi
 
-create_lvm_names 
-
-initialize_lvm 
+DIR=$1
+f_main 
 
 
 

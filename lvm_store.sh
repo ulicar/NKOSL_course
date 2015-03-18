@@ -1,5 +1,5 @@
 #!/bin/bash
-source create_loop_device
+source create_loop_device.sh
 
 function f_calculate_dir_size {
     size=$(du -sk $1 | sed -r 's/([0-9]+).*/\1/')
@@ -28,10 +28,10 @@ function f_create_physical_volumens {
 }
 
 function f_get_loop_device {
-    loop=$(losetup -f 2>/dev/null)
+    loop=$(losetup -f)
     if [ -z $loop ]
     then
-        create_loop_device #>/dev/null || exit 3
+        create_loop_device >/dev/null || exit 3
         loop=$(losetup -f 2>/dev/null)
     fi
     
@@ -39,15 +39,16 @@ function f_get_loop_device {
 }
 
 function f_mount_physical_volumens {
+		mounted=()
 		for id in $(eval echo {0..$1})
     do
-        mount_point=$(f_get_loop_device)
-				echo $mount_point
-        losetup $mount_point $2$id #1> /dev/null || exit 4
-        mounted_loop_devs=("${mounted_loop_devs[@]}" "$mount_point")       
+				create_loop_device >/dev/null && mount_point=$(losetup -f) || exit 4
+        losetup $mount_point $2$id 1> /dev/null || exit 4
+
+				mounted+=($mount_point)      
     done
 
-		echo $mounted_loop_devs
+		echo "${mounted[@]}"	
 }
 
 function f_notify {
@@ -59,17 +60,28 @@ function f_notify {
 }
 
 function f_create_volume_group {
-    vgcreate -s 1M $vg_name $mounted_loop_devices #1> /dev/null || exit -1 
+  vg_name='vg_nkosl'   
+	#vgcreate -s 1M $vg_name $@ #1> /dev/null || exit -1 
+	
+	echo $vg_name
 }
 
 function f_create_logical_volume {
-    lvcreate -l 100%FREE -n $lv_name $vg_name #1> /dev/null || exit -1
+	lv_name='nkosl'
+	#lvcreate -l 100%FREE -n $lv_name $1 #1> /dev/null || exit -1
+
+	echo $lv_name
 }
 
 function f_create_fs {
-    mkfs -t ext4 $lv_name #1> /dev/null || exit -1
+	echo $1
+	#mkfs -t ext4 $1 #1> /dev/null || exit -1
 } 
 
+function f_copy_dir_to_fs {
+	echo "copy $1 to $2 "
+	#cp -R $1 $2
+}
 
 function f_main {
     directory=$1
@@ -81,18 +93,16 @@ function f_main {
 		device='new_disk.part'
     f_create_physical_volumens $pv_count $pv_size
 
-    declare -a mounted_loop_devs 
-    f_mount_physical_volumens $pv_count $device
-    f_notify $pv_count $device
+		mounted=($(f_mount_physical_volumens $pv_count $device))
+		f_notify $pv_count $device
+		echo ${mounted[@]}
+		vg_name=$(f_create_volume_group ${mounted[@]})
+		echo $vg_name	
+		lv_name=$(f_create_logical_volume $vg_name)
     
-    vg_name='vg_nkosl'   
-    #f_create_volume_group
+		f_create_fs $lv_name
     
-    lv_name='nkosl'
-    #f_create_lvgical_volume
-    #f_create_ext4_fs
-    
-    #f_copy_dir_to_fs
+    f_copy_dir_to_fs $directory $lv_name
     
 }
 

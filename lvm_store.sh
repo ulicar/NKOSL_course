@@ -8,14 +8,23 @@ function f_calculate_dir_size {
 }
 
 function f_create_physical_volumens {
-		pv_size=$(echo "25 * 1024 * 1024" | bc)
+		pv_count=$1
+		pv_size=$2
+		if [ -z $pv_size ] || [ -z $pv_count ] || [ $pv_count -gt 10 ] 
+		then
+			exit 5 # Tempororary block
+		fi
+
 		echo "count is $pv_count, size is $pv_size"
-    
+    #dd if=/dev/zero of=$device bs=$pv_size count=1 || exit 2
+	
 		for id in $(eval echo {0..$pv_count})
     do  
-				echo $device$id
-        #dd if=/dev/zero of=$device$id bs=$pv_size count=1 || exit 2
+				cp $device $device$id
     done
+	
+		rm $device
+
 }
 
 function f_get_loop_device {
@@ -30,10 +39,11 @@ function f_get_loop_device {
 }
 
 function f_mount_physical_volumens {
-		for id in $(eval echo {0..$pv_count})
+		for id in $(eval echo {0..$1})
     do
         mount_point=$(f_get_loop_device)
-        losetup $mount_point $device$id #1> /dev/null || exit 4
+				echo $mount_point
+        losetup $mount_point $2$id #1> /dev/null || exit 4
         mounted_loop_devs=("${mounted_loop_devs[@]}" "$mount_point")       
     done
 
@@ -41,10 +51,10 @@ function f_mount_physical_volumens {
 }
 
 function f_notify {
-		echo "Created $(eval echo $pv_count +1) loopback devices with files"
-    for id in $(eval echo {0..$pv_count})
+		echo "Created $(echo "$1 +1" | bc) loopback devices with files"
+    for id in $(eval echo {0..$1})
     do        
-        echo -e "$device$id"
+        echo -e "\t$2$id"
     done
 }
 
@@ -65,14 +75,15 @@ function f_main {
     directory=$1
 		dir_size=$(f_calculate_dir_size $directory)
     echo "Directory $directory has a size of $dir_size KiB"
-   	
+   
+		pv_size=$(echo "25 * 1024 * 1024" | bc)
     pv_count=$(echo "($dir_size) / $pv_size + 1" | bc)
 		device='new_disk.part'
-    f_create_physical_volumens 
+    f_create_physical_volumens $pv_count $pv_size
 
     declare -a mounted_loop_devs 
-    #f_mount_physical_volumens
-    f_notify
+    f_mount_physical_volumens $pv_count $device
+    f_notify $pv_count $device
     
     vg_name='vg_nkosl'   
     #f_create_volume_group

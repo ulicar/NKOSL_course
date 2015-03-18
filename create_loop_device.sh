@@ -15,7 +15,7 @@ function create_loop_device {
     echo "Created /dev/loop$next_loop_number "
 }
 
-if [[ $_ = $0 ]]
+if [[ "$0" = $BASH_SOURCE ]]
 then
     create_loop_device
 fi

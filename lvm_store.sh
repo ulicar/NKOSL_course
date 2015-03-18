@@ -2,8 +2,9 @@
 source create_loop_device
 
 function f_calculate_dir_size {
-    dir_size=$(du -sk $DIR | sed -r 's/([0-9]+).*/\1/')
-    echo "Directory $DIR has a size of $dir_size KiB"
+    size=$(du -sk $1 | sed -r 's/([0-9]+).*/\1/')
+		
+		echo $size
 }
 
 function f_create_physical_volumens {
@@ -55,10 +56,11 @@ function f_create_fs {
 
 
 function f_main {
-    DIR=$1
-    f_calculate_dir_size 
+    directory=$1
+		dir_size=$(f_calculate_dir_size $directory)
+    echo "Directory $directory has a size of $dir_size KiB"
     
-    pv_size=$(echo "25 * 1024 * 1024" | bc)
+		pv_size=$(echo "25 * 1024 * 1024" | bc)
     pv_count=$(echo "($dir_size) / $container_size + 1" | bc)
     device='disk.part'
     

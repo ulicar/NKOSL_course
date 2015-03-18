@@ -10,13 +10,14 @@ function f_calculate_dir_size {
 function f_create_physical_volumens {
   pv_count=$1
   pv_size=$2
-  if [ -z $pv_size ] || [ -z $pv_count ] || [ $pv_count -gt 10 ] 
+  deveice=$3
+  if [ -z $pv_size ] || [ -z $pv_count ] || [ -z $device ] || [ $pv_count -gt 10 ] 
   then
     exit 5 # Tempororary block
   fi
 
-  echo "count is $pv_count, size is $pv_size"
-  #dd if=/dev/zero of=$device bs=$pv_size count=1 || exit 2
+  #echo "count is $pv_count, size is $pv_size"
+  dd if=/dev/zero of=$3 bs=$pv_size count=1 || exit 2
 	
   for id in $(eval echo {0..$pv_count})
   do  
@@ -42,11 +43,13 @@ function f_mount_physical_volumens {
   for id in $(eval echo {0..$1})
   do
     create_loop_device >/dev/null && mount_point=$(losetup -f) || exit 4
-    losetup $mount_point $2$id 1> /dev/null || exit 4
+    name=$2$id
+    losetup $mount_point $name 1> /dev/null || exit 4
 
     mounted+=($mount_point)      
   done
-
+  
+  pvcreate "${mounted[@]}" >/dev/null || exit 4
   echo "${mounted[@]}"	
 }
 
@@ -60,26 +63,27 @@ function f_notify {
 
 function f_create_volume_group {
   vg_name='vg_nkosl'   
-  #vgcreate -s 1M $vg_name $@ #1> /dev/null || exit -1 
+  echo $@
+  #vgcreate -s 1M $vg_name $@ 1> /dev/null || exit -1 
 	
   echo $vg_name
 }
 
 function f_create_logical_volume {
   lv_name='nkosl'
-  #lvcreate -l 100%FREE -n $lv_name $1 #1> /dev/null || exit -1
+  lvcreate -l 100%FREE -n $lv_name $1 1> /dev/null || exit -1
 
   echo $lv_name
 }
 
 function f_create_fs {
-  echo $1
-  #mkfs -t ext4 $1 #1> /dev/null || exit -1
+  #echo $1
+  mkfs -t ext4 $1 1> /dev/null || exit -1
 } 
 
 function f_copy_dir_to_fs {
-  echo "copy $1 to $2 "
-  #cp -R $1 $2
+  #echo "copy $1 to $2 "
+  cp -R $1 $2
 }
 
 function f_main {
@@ -87,16 +91,17 @@ function f_main {
   dir_size=$(f_calculate_dir_size $directory)
   echo "Directory $directory has a size of $dir_size KiB"
    
-  pv_size=$(echo "25 * 1024 * 1024" | bc)
-  pv_count=$(echo "($dir_size) / $pv_size + 1" | bc)
+  pv_size=$(echo "25 * 1024 *1024" | bc)
+  pv_count=$(echo "($dir_size * 1024) / $pv_size + 1" | bc)
   device='new_disk.part'
-  f_create_physical_volumens $pv_count $pv_size
+  f_create_physical_volumens $pv_count $pv_size $device
 
   mounted=($(f_mount_physical_volumens $pv_count $device))
   f_notify $pv_count $device
-  echo ${mounted[@]}
-  vg_name=$(f_create_volume_group ${mounted[@]})
-  echo $vg_name	
+ 
+  f_create_volume_group ${mounted[@]}
+
+  exit 1
   lv_name=$(f_create_logical_volume $vg_name)
    
   f_create_fs $lv_name

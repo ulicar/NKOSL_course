@@ -1,8 +1,8 @@
 #!/bin/bash
 
-vgremove "vg_data"
+vgremove "vg_nkosl"
 
-for i in {0..8}
+  for i in {0..20}
 do
     losetup -d /dev/loop$i
 done

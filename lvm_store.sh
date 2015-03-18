@@ -84,22 +84,22 @@ function f_copy_dir_to_fs {
 
 function f_main {
   directory=$1
-	dir_size=$(f_calculate_dir_size $directory)
+  dir_size=$(f_calculate_dir_size $directory)
   echo "Directory $directory has a size of $dir_size KiB"
    
-	pv_size=$(echo "25 * 1024 * 1024" | bc)
+  pv_size=$(echo "25 * 1024 * 1024" | bc)
   pv_count=$(echo "($dir_size) / $pv_size + 1" | bc)
-	device='new_disk.part'
+  device='new_disk.part'
   f_create_physical_volumens $pv_count $pv_size
 
-	mounted=($(f_mount_physical_volumens $pv_count $device))
-	f_notify $pv_count $device
-	echo ${mounted[@]}
-	vg_name=$(f_create_volume_group ${mounted[@]})
-	echo $vg_name	
-	lv_name=$(f_create_logical_volume $vg_name)
+  mounted=($(f_mount_physical_volumens $pv_count $device))
+  f_notify $pv_count $device
+  echo ${mounted[@]}
+  vg_name=$(f_create_volume_group ${mounted[@]})
+  echo $vg_name	
+  lv_name=$(f_create_logical_volume $vg_name)
    
-	f_create_fs $lv_name
+  f_create_fs $lv_name
     
   f_copy_dir_to_fs $directory $lv_name
     

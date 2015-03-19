@@ -1,34 +1,16 @@
 #!/bin/bash
 source create_loop_device.sh
 
+
 function f_calculate_dir_size {
   size=$(du -sk $1 | sed -r 's/([0-9]+).*/\1/')
 		
   echo $size
 }
 
-function f_create_physical_volumens {
-  pv_count=$1
-  pv_size=$2
-  deveice=$3
-  if [ -z $pv_size ] || [ -z $pv_count ] || [ -z $device ] || [ $pv_count -gt 10 ] 
-  then
-    exit 5 # Tempororary block
-  fi
-
-  #echo "count is $pv_count, size is $pv_size"
-  dd if=/dev/zero of=$3 bs=$pv_size count=1 || exit 2
-	
-  for id in $(eval echo {0..$pv_count})
-  do  
-	  cp $device $device$id
-  done
-	
-  rm $device
-}
 
 function f_get_loop_device {
-  loop=$(losetup -f)
+  loop=$(losetup -f 2>/dev/null)
   if [ -z $loop ]
   then
     create_loop_device >/dev/null || exit 3
@@ -38,20 +20,43 @@ function f_get_loop_device {
   echo $loop
 }
 
-function f_mount_physical_volumens {
-  mounted=()
-  for id in $(eval echo {0..$1})
-  do
-    create_loop_device >/dev/null && mount_point=$(losetup -f) || exit 4
-    name=$2$id
-    losetup $mount_point $name 1> /dev/null || exit 4
 
-    mounted+=($mount_point)      
-  done
+function f_lvm_manage {
+  pv_count=$1
+  pv_size=$2
+  device=$3
+
+  if [ -z $pv_size ] || [ -z $pv_count ] || [ -z $device ] || [ $pv_count -gt 20 ] 
+  then
+    exit 5 # Tempororary block
+  fi
+
+  dd if=/dev/zero of=$device bs=4k count=6400 || exit 2
+  lp=$(f_get_loop_device)
   
-  pvcreate "${mounted[@]}" >/dev/null || exit 4
-  echo "${mounted[@]}"	
+  losetup $lp $device || exit 2
+  pvcreate $lp || exit 2
+  vgcreate 'nkosl' $lp 
+  
+  exit
+  for (( id = 1; id <$((pv_count)); id++ ))
+  do
+    dd if=/dev/zero of=$device$id bs=4k count=6400 || exit 2
+    lp=$(f_get_loop_device)
+
+    losetup $lp $device$id
+    pvcreate $lp
+    vgextend 'nkosl' $lp
+  done
+
+  mkdir -p /mnt/nkosl 
+  lvcreate -l 100%VG nkosl -n new_fs
+  mkfs -t ext4 /dev/nkosl/new_fs
+  mount /dev/nkosl/new_fs /mnt/nkosl
+
+  echo "/mnt/nkosl"
 }
+
 
 function f_notify {
   echo "Created $(echo "$1 +1" | bc) loopback devices with files"
@@ -61,30 +66,12 @@ function f_notify {
   done
 }
 
-function f_create_volume_group {
-  vg_name='vg_nkosl'   
-  echo $@
-  #vgcreate -s 1M $vg_name $@ 1> /dev/null || exit -1 
-	
-  echo $vg_name
-}
-
-function f_create_logical_volume {
-  lv_name='nkosl'
-  lvcreate -l 100%FREE -n $lv_name $1 1> /dev/null || exit -1
-
-  echo $lv_name
-}
-
-function f_create_fs {
-  #echo $1
-  mkfs -t ext4 $1 1> /dev/null || exit -1
-} 
 
 function f_copy_dir_to_fs {
   #echo "copy $1 to $2 "
   cp -R $1 $2
 }
+
 
 function f_main {
   directory=$1
@@ -94,20 +81,12 @@ function f_main {
   pv_size=$(echo "25 * 1024 *1024" | bc)
   pv_count=$(echo "($dir_size * 1024) / $pv_size + 1" | bc)
   device='new_disk.part'
-  f_create_physical_volumens $pv_count $pv_size $device
 
-  mounted=($(f_mount_physical_volumens $pv_count $device))
-  f_notify $pv_count $device
- 
-  f_create_volume_group ${mounted[@]}
-
-  exit 1
-  lv_name=$(f_create_logical_volume $vg_name)
-   
-  f_create_fs $lv_name
-    
+  lv_name=$(f_lvm_manage $pv_count $pv_size $device)
+  exit 10
   f_copy_dir_to_fs $directory $lv_name
     
+  f_notify $pv_count $device
 }
 
 if [ "$(id -u)" != "0" ]

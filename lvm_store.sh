@@ -31,7 +31,7 @@ function f_lvm_manage {
     exit 5 # Tempororary block
   fi
 
-  dd if=/dev/zero of=$device bs=4k count=6400 >/dev/null || exit 2
+  dd if=/dev/zero of=$device bs=4k count=6400 >/dev/null 2>&1 || exit 2
   lp=$(f_get_loop_device)
 
   losetup $lp $device >/dev/null || exit 2
@@ -40,7 +40,7 @@ function f_lvm_manage {
  
   for (( id = 1; id <$((pv_count)); id++ ))
   do
-    dd if=/dev/zero of=$device$id bs=4k count=6400 >/dev/null || exit 2
+    dd if=/dev/zero of=$device$id bs=4k count=6400 >/dev/null 2>&1 || exit 2
     lp=$(f_get_loop_device)
 
     losetup $lp $device$id >/dev/null 2>&1 || exit 3
@@ -69,8 +69,8 @@ function f_main {
   lv_name=$(f_lvm_manage $pv_count $pv_size $device)
   cp -R $directory $lv_name
     
-  echo "Created $(echo "$pv_count +1" | bc) loopback devices with files"
-  for id in $(eval echo {0..$pv_count})
+  echo "Created $(echo "$pv_count" | bc) loopback devices with files"
+  for (( id = 0; id <$((pv_count)); id++ ))
   do        
     echo -e "\t$device$id"
   done

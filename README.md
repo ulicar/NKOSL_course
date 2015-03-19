@@ -1,6 +1,6 @@
 # Working with LVM (logical volume manager)
 Warning: Don't user this on older kernels that use 'modeprobe loop' way of creating loop devices.
- 
+Info: http://linuxconfig.org/linux-lvm-logical-volume-manager 
 Bash script that creates ext4 filesystem used with LMV to createfiles upto 25MB (so they be sent via mail service)
 
 Usage:

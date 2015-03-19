@@ -11,7 +11,7 @@ function f_calculate_dir_size {
 
 function f_get_loop_device {
   loop=$(losetup -f 2>/dev/null)
-  if [ -z $loop ]
+  if [ -z $loop ] || [ ! -e $loop ]
   then
     create_loop_device >/dev/null || exit 3
     loop=$(losetup -f 2>/dev/null)
@@ -33,43 +33,27 @@ function f_lvm_manage {
 
   dd if=/dev/zero of=$device bs=4k count=6400 || exit 2
   lp=$(f_get_loop_device)
-  
-  losetup $lp $device || exit 2
-  pvcreate $lp || exit 2
-  vgcreate 'nkosl' $lp 
-  
-  exit
+
+  losetup $lp $device >/dev/null || exit 2
+  pvcreate $lp >/dev/null || exit 2
+  vgcreate 'nkosl' $lp >/dev/null || exit 2 
+ 
   for (( id = 1; id <$((pv_count)); id++ ))
   do
     dd if=/dev/zero of=$device$id bs=4k count=6400 || exit 2
     lp=$(f_get_loop_device)
 
-    losetup $lp $device$id
-    pvcreate $lp
-    vgextend 'nkosl' $lp
+    losetup $lp $device$id >/dev/null 2>&1 || exit 3
+    pvcreate $lp >/dev/null 2>&1 || exit 3
+    vgextend 'nkosl' $lp >/dev/null 2>&1 || exit 3
   done
 
-  mkdir -p /mnt/nkosl 
-  lvcreate -l 100%VG nkosl -n new_fs
-  mkfs -t ext4 /dev/nkosl/new_fs
-  mount /dev/nkosl/new_fs /mnt/nkosl
+  mkdir -p /mnt/nkosl >/dev/null 2>&1 || exit 3
+  lvcreate -l 100%VG nkosl -n new_fs >/dev/null 2>&1 || exit 3
+  mkfs -t ext4 /dev/nkosl/new_fs >/dev/null 2>&1 || exit 3
+  mount /dev/nkosl/new_fs /mnt/nkosl >/dev/null 2>&1 || exit 3
 
   echo "/mnt/nkosl"
-}
-
-
-function f_notify {
-  echo "Created $(echo "$1 +1" | bc) loopback devices with files"
-  for id in $(eval echo {0..$1})
-  do        
-    echo -e "\t$2$id"
-  done
-}
-
-
-function f_copy_dir_to_fs {
-  #echo "copy $1 to $2 "
-  cp -R $1 $2
 }
 
 
@@ -83,10 +67,13 @@ function f_main {
   device='new_disk.part'
 
   lv_name=$(f_lvm_manage $pv_count $pv_size $device)
-  exit 10
-  f_copy_dir_to_fs $directory $lv_name
+  cp -R $directory $lv_name
     
-  f_notify $pv_count $device
+  echo "Created $(echo "$pv_count +1" | bc) loopback devices with files"
+  for id in $(eval echo {0..$pv_count})
+  do        
+    echo -e "\t$device$id"
+  done
 }
 
 if [ "$(id -u)" != "0" ]

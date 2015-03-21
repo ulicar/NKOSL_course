@@ -31,10 +31,11 @@ function f_lvm_manage {
     exit 5 # Tempororary block
   fi
 
-  dd if=/dev/zero of=$device bs=4k count=6400 >/dev/null 2>&1 || exit 2
+  id=0
+  dd if=/dev/zero of=$device$id bs=4k count=6400 >/dev/null 2>&1 || exit 2
   lp=$(f_get_loop_device)
 
-  losetup $lp $device >/dev/null || exit 2
+  losetup $lp $device$id >/dev/null || exit 2
   pvcreate $lp >/dev/null || exit 2
   vgcreate 'nkosl' $lp >/dev/null || exit 2 
  

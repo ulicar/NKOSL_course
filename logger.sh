@@ -2,9 +2,9 @@
 
 # Loggin script for debian testing system
 # Needs root privileges
-#if [ -u 0 ]: then
-#  echo 'Start as root' && exit -1
-#fi
+if [ "$(id -u)" != "0" ]; then
+  echo 'Start as root' && exit -1
+fi
 
 LOGD=/var/log/nkosl
 LOG="$LOGD""/shutdown.log" 

@@ -68,6 +68,8 @@ ip route add -net 172.16.0.0 netmask 255.255.0.0 gw 172.16.92.120
 iptables -I INPUT 1 -i $device -p tcp --dport 6667 -j ACCEPT
 iptables -I INPUT 2 -i $device -j DROP
 
+iptables-save > /etc/iptables.rule
+
 ifup $device
 
 

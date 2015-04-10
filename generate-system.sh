@@ -67,4 +67,4 @@ EOF
 
 # Clean 
 umount /mnt/debian32
-losetup -d /dev/vg_debian/debian32_fs
+losetup -d /dev/loop1

@@ -39,7 +39,6 @@ mkdir -p $DEBIAN/etc/rc0.d/
 ln -s $DEBIAN/etc/init.d/"$1" $DEBIAN/etc/rc0.d/K04"$1"
 
 # Setup networking
-device="eth0:0"
 interface=$DEBIAN'/etc/network/interfaces'
 touch $interface
 cat >> $interface << EOF
@@ -53,6 +52,7 @@ network 172.16.92.64
 up route add -net 172.16.0.0 netmask 255.255.0.0 gw 172.16.92.120 dev eth0:0
 EOF
 
+iptables=$DEBIAN'/etc/iptables.rules'
 cat >> $iptables << EOF
 Chain INPUT (policy DROP 0 packets, 0 bytes)
  pkts bytes target     prot opt in     out     source               destination         

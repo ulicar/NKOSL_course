@@ -17,53 +17,50 @@ then
   exit 1
 fi
 
+DEBIAN=/debian32/
+mkdir $DEBIAN
+# Deboostrab Debian64bit TESTING system
+debootstrap --arch amd64 --foreign  jessie $DEBIAN http://ftp.us.debian.org/debian
 
-# Create an empty file image (refer to branch LAB1 or google "Logical Volume Manager")
+# Link the logging script into init.d directory, start on reboot (rc6)
+mkdir -p $DEBIAN/etc/rc6.d/
+cp "$1" $DEBIAN/etc/init.d/
+ln -s $DEBIAN/etc/init.d/"$1" $DEBIAN/etc/rc6.d/K04"$1"
+
+# Setup networking
+interface=$DEBIAN'/etc/network/interfaces'
+touch $interface
+cat >> $interface << EOF
+auto eth0:0
+ iface eth0:0 inet static
+ name eth0 Alias
+ address 172.16.92.65
+ netmask 255.255.255.192
+ network 172.16.92.64
+ up route add -net 172.16.0.0 netmask 255.255.0.0 gw 172.16.92.120 dev eth0:0
+EOF
+
+iptables=$DEBIAN'/etc/iptables.rules'
+cat >> $iptables << EOF
+*filter
+:INPUT DROP [0:0]
+:FORWARD DROP [0:0]
+:OUTPUT ACCEPT [0:0]
+-A INPUT -i eth0:0 -p tcp -m tcp --dport 6667 -j ACCEPT
+COMMIT
+EOF
+
+
+# Make a Debian32 Testing image
 fallocate -l 1G debian32.img
 losetup /dev/loop1 debian32.img
 pvcreate /dev/loop1
 vgcreate 'vg_debian32' /dev/loop1
 lvcreate -l 100%VG "vg_debian32" -n "debian32_fs"
 
-DEBIAN=/mnt/debian32/
-mkdir $DEBIAN
 mkfs -t ext4 /dev/vg_debian/debian32_fs
-mount /dev/vg_debian/debian32_fs $DEBIAN
-
-# Build a basic system
-debootstrap --arch amd64 --foreign  wheezy $DEBIAN http://ftp.us.debian.org/debian
-
-# Link the logging script into init.d directory
-cp "$1" $DEBIAN/etc/init.d/
-mkdir -p $DEBIAN/etc/rc0.d/
-ln -s $DEBIAN/etc/init.d/"$1" $DEBIAN/etc/rc0.d/K04"$1"
-
-# Setup networking
-interface=$DEBIAN'/etc/network/interfaces'
-touch $interface
-cat >> $interface << EOF
-# NKOSL virtual interface
-auto eth0:0
-iface eth0:0 inet static
-name eth0 Alias
-address 172.16.92.65
-netmask 255.255.255.192
-network 172.16.92.64
-up route add -net 172.16.0.0 netmask 255.255.0.0 gw 172.16.92.120 dev eth0:0
-EOF
-
-iptables=$DEBIAN'/etc/iptables.rules'
-cat >> $iptables << EOF
-Chain INPUT (policy DROP 0 packets, 0 bytes)
- pkts bytes target     prot opt in     out     source               destination         
-     0     0 ACCEPT     tcp  --  eth0:0 *       0.0.0.0/0            0.0.0.0/0            tcp dpt:6667
-
-Chain FORWARD (policy DROP 0 packets, 0 bytes)
-pkts bytes target     prot opt in     out     source               destination 
-
-Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
- pkts bytes target     prot opt in     out     source               destination
-EOF
+mount /dev/vg_debian/debian32_fs /mnt/debian32
+mv -r $DEBIAN /mnt/debian32
 
 # Clean 
 umount /mnt/debian32

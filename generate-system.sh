@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Creates Debian 32bit testing system. 
+# Creates image Debian 32bit testing system. 
 # 
 # WARNING!!! 
-# Requirements: debootstrap, qemu-user-static, binfmt-support
+# Requirements: debootstrap
 # 1st argument: Script to be executed upon shutdown (logging script)
 
 if [ "$(id -u)" != "0" ]
@@ -20,14 +20,18 @@ fi
 DEBIAN=/debian32/
 mkdir $DEBIAN
 # Deboostrab Debian64bit TESTING system
-debootstrap --arch amd64 --foreign  jessie $DEBIAN http://ftp.us.debian.org/debian
+debootstrap --arch amd64 \ 
+            --foreign  jessie \ 
+            $DEBIAN http://ftp.us.debian.org/debian || exit -1
+
 
 # Link the logging script into init.d directory, start on reboot (rc6)
 mkdir -p $DEBIAN/etc/rc6.d/
 cp "$1" $DEBIAN/etc/init.d/
 ln -s $DEBIAN/etc/init.d/"$1" $DEBIAN/etc/rc6.d/K04"$1"
 
-# Setup networking
+
+# Setup networking and iptables
 interface=$DEBIAN'/etc/network/interfaces'
 touch $interface
 cat >> $interface << EOF
@@ -41,7 +45,8 @@ auto eth0:0
 EOF
 
 iptables=$DEBIAN'/etc/iptables.rules'
-cat >> $iptables << EOF
+touch $iptables
+cat > $iptables << EOF
 *filter
 :INPUT DROP [0:0]
 :FORWARD DROP [0:0]

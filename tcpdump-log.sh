@@ -20,7 +20,7 @@ if [ ! -f "$LOG_FILE" ]; then
 fi
 
 # redirect output
-#exec 2>&1 1>>$LOG_FILE
+exec 2>&1 1>>$LOG_FILE
 
 # track only ICMP messages to google DNS 8.8.8.8
 tcpdump -lnv -i eth0 icmp and dst host 8.8.8.8 
